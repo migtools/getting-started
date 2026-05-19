@@ -1,0 +1,81 @@
+# Portlet → Spring Boot: JSP and portlet 2.0 tag library migration
+
+- ruleID: portlet-jsp-taglib-00016
+  description: Replace portlet 2.0 JSP tag library with Thymeleaf and Spring MVC URLs
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Thymeleaf + Spring
+      url: https://www.thymeleaf.org/doc/tutorials/3.1/thymeleafspring.html
+  message: |
+    ## Before
+
+    ```jsp
+    <%@ taglib uri="http://java.sun.com/portlet_2_0" prefix="portlet" %>
+    <portlet:defineObjects />
+    <portlet:actionURL var="url">
+      <portlet:param name="action" value="save"/>
+    </portlet:actionURL>
+    <form action="${url}" method="post">...</form>
+    ```
+
+    ## After
+
+    ```html
+    <form th:action="@{/tasks/save}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      ...
+    </form>
+    <a th:href="@{/tasks/{id}(id=${task.id})}">View</a>
+    ```
+
+    ## Additional info
+
+    - `portlet:renderURL` mode switches become distinct URLs.
+    - `portlet:resourceURL` becomes REST `fetch()` or `th:href` for APIs.
+    - Move templates to `src/main/resources/templates`.
+  when:
+    builtin.filecontent:
+      filePattern: "**/*.jsp"
+      pattern: "portlet_2_0|portlet:defineObjects|portlet:actionURL|portlet:renderURL|portlet:resourceURL"
+
+- ruleID: portlet-jsp-cforEach-00036
+  description: Replace JSTL c:forEach with Thymeleaf th:each
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Thymeleaf Iteration
+      url: https://www.thymeleaf.org/doc/tutorials/3.1/usingthymeleaf.html#iterating
+  message: |
+    ## Before
+
+    ```jsp
+    <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+    <c:forEach items="${tasks}" var="task">
+      <td>${task.title}</td>
+    </c:forEach>
+    ```
+
+    ## After
+
+    ```html
+    <tr th:each="task : ${tasks}">
+      <td th:text="${task.title}">Title</td>
+    </tr>
+    ```
+
+    ## Additional info
+
+    - Replace `${}` EL in JSP with `th:text` for output escaping.
+    - `c:if` becomes `th:if`.
+    - Remove JSTL dependency from pom.xml.
+  when:
+    builtin.filecontent:
+      filePattern: "**/*.jsp"
+      pattern: "c:forEach|c:if|taglib.*jstl"

@@ -1,0 +1,124 @@
+# Portlet → Spring Boot: portal security and distributed sessions
+
+- ruleID: portlet-userprincipal-00033
+  description: Replace portal getUserPrincipal with Spring Security
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Security Authentication
+      url: https://docs.spring.io/spring-security/reference/servlet/authentication/index.html
+  message: |
+    ## Before
+
+    ```java
+    Principal principal = request.getUserPrincipal();
+    String userName = principal != null ? principal.getName() : "guest";
+    ```
+
+    ## After
+
+    ```java
+    @GetMapping
+    public String view(@AuthenticationPrincipal UserDetails user, Model model) {
+      String userName = user != null ? user.getUsername() : "guest";
+    }
+    ```
+
+    ## Additional info
+
+    - Replace portal SSO with Spring Security OAuth2/OIDC or SAML.
+    - Configure `SecurityFilterChain` in `@Configuration`.
+    - Use JWT for stateless API authentication.
+  when:
+    java.referenced:
+      pattern: getUserPrincipal
+      location: METHOD_CALL
+
+- ruleID: portlet-security-config-00038
+  description: Add Spring Security to replace JBoss Portal security constraints
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Security Filter Chain
+      url: https://docs.spring.io/spring-security/reference/servlet/configuration/java.html
+  message: |
+    ## Before
+
+    Portal security defined in `jboss-portlet.xml` or `web.xml` security constraints,
+    with roles enforced by the portal container.
+
+    ## After
+
+    ```java
+    @Configuration
+    @EnableWebSecurity
+    public class SecurityConfig {
+      @Bean
+      SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/public/**").permitAll()
+            .requestMatchers("/api/**").authenticated()
+            .anyRequest().authenticated())
+          .oauth2Login()
+          .formLogin();
+        return http.build();
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Add `spring-boot-starter-security` dependency.
+    - Map portal roles to Spring Security `GrantedAuthority`.
+    - Enable CSRF for form-based Thymeleaf views.
+  when:
+    builtin.file:
+      pattern: "**/jboss-portlet.xml"
+
+- ruleID: portlet-spring-session-00039
+  description: Add Spring Session for clustered session replacement
+  category: optional
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Session
+      url: https://docs.spring.io/spring-session/reference/
+  message: |
+    ## Before
+
+    Portlet sessions (`PORTLET_SCOPE`, `APPLICATION_SCOPE`) managed by the portal cluster.
+
+    ## After
+
+    ```yaml
+    spring:
+      session:
+        store-type: redis
+        redis:
+          namespace: spring:session
+    ```
+
+    ```xml
+    <dependency>
+      <groupId>org.springframework.session</groupId>
+      <artifactId>spring-session-data-redis</artifactId>
+    </dependency>
+    ```
+
+    ## Additional info
+
+    - Export critical session data before portal cutover.
+    - Prefer stateless JWT for API tiers.
+    - APPLICATION_SCOPE shared state belongs in DB or cache, not HTTP session.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletSession
+      location: TYPE

@@ -1,0 +1,104 @@
+# Portlet → Spring Boot 4.x: Jakarta EE namespace migration
+
+- ruleID: portlet-servlet-api-00022
+  description: Migrate javax.servlet imports to jakarta.servlet
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Jakarta Servlet 6.0
+      url: https://jakarta.ee/specifications/servlet/6.0/
+  message: |
+    ## Before
+
+    ```java
+    import javax.servlet.http.HttpServletRequest;
+    import javax.servlet.http.HttpServletResponse;
+    ```
+
+    ## After
+
+    ```java
+    import jakarta.servlet.http.HttpServletRequest;
+    import jakarta.servlet.http.HttpServletResponse;
+    ```
+
+    ## Additional info
+
+    - Spring Boot 4.x uses Jakarta EE 11 (jakarta.* namespace).
+    - Prefer Spring abstractions (Model, @RequestParam) over direct servlet APIs.
+    - Update web.xml to Jakarta servlet schema if retained.
+  when:
+    java.referenced:
+      pattern: javax.servlet.*
+      location: IMPORT
+
+- ruleID: portlet-javax-persistence-00034
+  description: Migrate javax.persistence imports to jakarta.persistence
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Jakarta Persistence 3.1
+      url: https://jakarta.ee/specifications/persistence/3.1/
+  message: |
+    ## Before
+
+    ```java
+    import javax.persistence.Entity;
+    import javax.persistence.Id;
+    ```
+
+    ## After
+
+    ```java
+    import jakarta.persistence.Entity;
+    import jakarta.persistence.Id;
+    ```
+
+    ## Additional info
+
+    - Use spring-boot-starter-data-jpa with Hibernate 6.x.
+    - Prefer Spring Data JpaRepository over EntityManager.
+  when:
+    java.referenced:
+      pattern: javax.persistence.*
+      location: IMPORT
+
+- ruleID: portlet-javax-annotation-00037
+  description: Migrate javax.annotation to jakarta.annotation
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Jakarta Annotations
+      url: https://jakarta.ee/specifications/annotations/
+  message: |
+    ## Before
+
+    ```java
+    import javax.annotation.PostConstruct;
+    import javax.annotation.Resource;
+    ```
+
+    ## After
+
+    ```java
+    import jakarta.annotation.PostConstruct;
+    import jakarta.annotation.Resource;
+    ```
+
+    ## Additional info
+
+    - Prefer Spring `@Autowired` / constructor injection over `@Resource`.
+    - `@PostConstruct` works the same under jakarta namespace.
+  when:
+    java.referenced:
+      pattern: javax.annotation.*
+      location: IMPORT

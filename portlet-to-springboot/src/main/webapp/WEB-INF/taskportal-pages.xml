@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pages>
+    <portal-name>default</portal-name>
+    <page>
+        <page-name>task-dashboard</page-name>
+        <window>
+            <window-name>TaskListWindow</window-name>
+            <instance-ref>taskportal.TaskListPortlet.TaskListInstance</instance-ref>
+            <region>left</region>
+            <height>0</height>
+        </window>
+        <window>
+            <window-name>TaskDetailWindow</window-name>
+            <instance-ref>taskportal.TaskDetailPortlet.TaskDetailInstance</instance-ref>
+            <region>center</region>
+            <height>0</height>
+            <default>true</default>
+        </window>
+    </page>
+</pages>

@@ -1,0 +1,19 @@
+name: portlet-to-springboot
+description: |
+  Comprehensive Kantra ruleset for migrating JSR 286 (Portlet 2.0) applications
+  on JBoss Portal Server / GateIn to Spring Boot 4.x.
+
+  Coverage:
+  - Build & dependencies (portlet-api removal, Spring Boot 4 parent, JAR packaging)
+  - Portlet lifecycle (GenericPortlet, doView/doEdit/doHelp, processAction, serveResource, processEvent)
+  - Inter-portlet communication (render parameters, portlet events)
+  - Portlet preferences & sessions
+  - Portal descriptors (portlet.xml, jboss-portlet.xml, portlet-instances.xml, *-pages.xml)
+  - View layer (JSP portlet taglibs → Thymeleaf)
+  - Jakarta namespace (javax.servlet, javax.persistence)
+  - Security (portal principal → Spring Security)
+  - Service layer extraction
+
+labels:
+  - konveyor.io/source=portlet
+  - konveyor.io/target=springboot

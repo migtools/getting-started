@@ -1,0 +1,290 @@
+# Portlet → Spring Boot: IPC, preferences, sessions, modes, window states
+
+- ruleID: portlet-setrenderparameter-00011
+  description: Replace setRenderParameter with redirect query params or path variables
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Redirect
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/redirecting.html
+  message: |
+    ## Before
+
+    ```java
+    response.setRenderParameter("selectedTaskId", taskId);
+    ```
+
+    ## After
+
+    ```java
+    return "redirect:/tasks/detail?selectedTaskId=" + taskId;
+    // or
+    return "redirect:/tasks/" + taskId;
+    ```
+
+    ## Additional info
+
+    - Public render parameters for IPC become path variables or query params.
+    - Flash attributes preserve data across redirects.
+  when:
+    java.referenced:
+      pattern: setRenderParameter
+      location: METHOD_CALL
+
+- ruleID: portlet-setevent-00012
+  description: Replace setEvent with Spring ApplicationEventPublisher
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Events
+      url: https://docs.spring.io/spring-framework/reference/core/beans/context-introduction.html#context-functionality-events
+  message: |
+    ## Before
+
+    ```java
+    response.setEvent(TaskEvents.TASK_SELECTED, taskId);
+    ```
+
+    ## After
+
+    ```java
+    applicationEventPublisher.publishEvent(new TaskSelectedEvent(taskId));
+    // cross-service:
+    // kafkaTemplate.send("task-events", new TaskSelectedEvent(taskId));
+    ```
+
+    ## Additional info
+
+    - Replace QName-based portlet events with typed application events.
+    - WebSocket/STOMP can push updates to other UI widgets (former portlets).
+  when:
+    java.referenced:
+      pattern: setEvent
+      location: METHOD_CALL
+
+- ruleID: portlet-preferences-00009
+  description: Replace PortletPreferences with persistent user preference store
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Data JPA
+      url: https://docs.spring.io/spring-data/jpa/reference/jpa.html
+  message: |
+    ## Before
+
+    ```java
+    PortletPreferences prefs = request.getPreferences();
+    prefs.setValue("maxResults", "25");
+    prefs.store();
+    String max = prefs.getValue("maxResults", "10");
+    ```
+
+    ## After
+
+    ```java
+    @Entity
+    @Table(name="user_preferences")
+    public class UserPreference { /* userId, key, value */ }
+
+    @Service
+    public class UserPreferenceService {
+      public void save(String userId, String key, String value) { ... }
+      public Optional<String> get(String userId, String key) { ... }
+    }
+    ```
+
+    ## Additional info
+
+    - Migrate portal DB tables (e.g. `jbp_preferences`) with SQL scripts.
+    - Expose preferences via REST for SPA clients.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletPreferences
+      location: TYPE
+
+- ruleID: portlet-session-00010
+  description: Replace PortletSession scopes with HTTP session or @Service beans
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Session
+      url: https://docs.spring.io/spring-session/reference/
+  message: |
+    ## Before
+
+    ```java
+    PortletSession session = request.getPortletSession();
+    session.setAttribute("lastAction", msg, PortletSession.PORTLET_SCOPE);
+    Object catalog = portletContext.getAttribute(KEY, PortletSession.APPLICATION_SCOPE);
+    ```
+
+    ## After
+
+    ```java
+    request.getSession().setAttribute("lastAction", msg);
+    // APPLICATION_SCOPE -> @Service singleton or Redis cache
+    ```
+
+    ## Additional info
+
+    - Prefer stateless JWT for APIs where possible.
+    - Use `spring-session-data-redis` for clustered deployments.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletSession
+      location: TYPE
+
+- ruleID: portlet-portletmode-00020
+  description: Replace PortletMode with distinct URL routes
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring RequestMapping
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html
+  message: |
+    ## Before
+
+    ```java
+    response.setPortletMode(PortletMode.VIEW);
+    response.setPortletMode(PortletMode.EDIT);
+    if (request.getPortletMode().equals(PortletMode.HELP)) { }
+    ```
+
+    ## After
+
+    ```java
+    return "redirect:/tasks";           // was VIEW
+    return "redirect:/tasks/preferences"; // was EDIT
+    return "redirect:/tasks/help";      // was HELP
+    ```
+
+    ## Additional info
+
+    - `portlet:renderURL portletMode=edit` becomes `th:href=@{/tasks/preferences}`.
+    - Custom portlet modes need explicit URL design.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletMode
+      location: TYPE
+
+- ruleID: portlet-windowstate-00021
+  description: Replace WindowState with front-end UI state
+  category: optional
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: MDN Window API
+      url: https://developer.mozilla.org/en-US/docs/Web/API/Window
+  message: |
+    ## Before
+
+    ```java
+    WindowState state = request.getWindowState();
+    // NORMAL, MAXIMIZED, MINIMIZED
+    ```
+
+    ## After
+
+    Handle in the UI layer (CSS/JS) or omit entirely.
+
+    ## Additional info
+
+    - Portal chrome managed window states have no server equivalent.
+    - Do not encode business logic based on window state.
+  when:
+    java.referenced:
+      pattern: javax.portlet.WindowState
+      location: TYPE
+
+- ruleID: portlet-public-render-param-00030
+  description: Migrate public render parameters from portlet.xml to HTTP parameters
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: REST API Design
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/responsebody.html
+  message: |
+    ## Before
+
+    ```xml
+    <public-render-parameter>
+      <identifier>selectedTaskId</identifier>
+    </public-render-parameter>
+    ```
+
+    ## After
+
+    ```java
+    @GetMapping("/tasks/detail")
+    public String detail(@RequestParam("selectedTaskId") String taskId, Model model) { }
+
+    @GetMapping("/api/v1/tasks/{id}")
+    public TaskDto get(@PathVariable String id) { }
+    ```
+
+    ## Additional info
+
+    - IPC between portlets becomes internal service calls or REST.
+    - Document shared parameters in OpenAPI.
+  when:
+    builtin.xml:
+      xpath: "//public-render-parameter | //supported-public-render-parameter"
+
+- ruleID: portlet-event-definition-00031
+  description: Migrate portlet event definitions to Spring events or messaging
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring ApplicationEvent
+      url: https://docs.spring.io/spring-framework/reference/core/beans/context-introduction.html#context-functionality-events
+  message: |
+    ## Before
+
+    ```xml
+    <event-definition>
+      <qname xmlns:task="http://example.com/events">task:taskSelected</qname>
+    </event-definition>
+    ```
+
+    ## After
+
+    ```java
+    public record TaskSelectedEvent(String taskId) {}
+
+    @Component
+    class TaskEventPublisher {
+      @Autowired ApplicationEventPublisher publisher;
+      void select(String id) { publisher.publishEvent(new TaskSelectedEvent(id)); }
+    }
+    ```
+
+    ## Additional info
+
+    - QName events have no direct Spring equivalent.
+    - Use Kafka/RabbitMQ when portlets ran in separate WARs.
+  when:
+    builtin.xml:
+      xpath: "//event-definition | //supported-processing-event | //supported-publishing-event"

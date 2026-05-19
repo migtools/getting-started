@@ -1,0 +1,175 @@
+# Portlet → Spring Boot 4.x: build, dependencies, packaging
+# Generated with Konveyor Scribe MCP (Kantra)
+
+- ruleID: portlet-dependencies-00001
+  description: Remove javax.portlet portlet-api and add Spring Boot 4.x starters
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot 4.x Getting Started
+      url: https://docs.spring.io/spring-boot/docs/current/reference/html/getting-started.html
+  message: |
+    ## Before
+
+    Legacy portlet WAR depends on JSR 286 API provided by the portal container:
+
+    ```xml
+    <dependency>
+      <groupId>javax.portlet</groupId>
+      <artifactId>portlet-api</artifactId>
+      <version>2.0</version>
+      <scope>provided</scope>
+    </dependency>
+    ```
+
+    ## After
+
+    Remove portlet-api entirely and adopt Spring Boot 4.x parent with web starters:
+
+    ```xml
+    <parent>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-parent</artifactId>
+      <version>4.0.0</version>
+    </parent>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-thymeleaf</artifactId>
+      </dependency>
+    </dependencies>
+    ```
+
+    ## Additional info
+
+    - Set Java 21+ in properties for Spring Boot 4.x.
+    - Replace WAR packaging with executable JAR unless external servlet deployment is required.
+    - Portlet container-specific descriptors (jboss-portlet.xml, portlet-instances.xml) are no longer needed.
+  when:
+    builtin.xml:
+      xpath: "//dependency[groupId='javax.portlet' and artifactId='portlet-api']"
+
+- ruleID: portlet-springboot-parent-00025
+  description: Add Spring Boot parent POM when portlet dependencies are present
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Parent
+      url: https://docs.spring.io/spring-boot/
+  message: |
+    ## Before
+
+    Portlet WAR without Spring Boot parent POM.
+
+    ## After
+
+    ```xml
+    <parent>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-parent</artifactId>
+      <version>4.0.0</version>
+    </parent>
+    <properties>
+      <java.version>21</java.version>
+    </properties>
+    <build>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+      </plugins>
+    </build>
+    ```
+
+    ## Additional info
+
+    - Add spring-boot-starter-web, thymeleaf, data-jpa, security as needed.
+    - Create `@SpringBootApplication` main class in root package.
+    - Remove portal-specific Maven plugins.
+  when:
+    builtin.xml:
+      xpath: "//dependency[groupId='javax.portlet'] | //dependency[contains(artifactId,'portlet')]"
+
+- ruleID: portlet-war-packaging-00023
+  description: Change WAR packaging to executable JAR for Spring Boot
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Packaging
+      url: https://docs.spring.io/spring-boot/reference/packaging.html
+  message: |
+    ## Before
+
+    ```xml
+    <packaging>war</packaging>
+    ```
+
+    Portlet applications are traditionally WARs deployed to a portal container.
+
+    ## After
+
+    ```xml
+    <packaging>jar</packaging>
+    ```
+
+    Add spring-boot-maven-plugin for executable JAR with embedded Tomcat.
+
+    ## Additional info
+
+    - Use war packaging + provided Tomcat only if deploying to external servlet container.
+    - Container images should run `java -jar`.
+    - Remove maven-war-plugin in favor of spring-boot-maven-plugin.
+  when:
+    builtin.xml:
+      xpath: "//packaging[text()='war']"
+
+- ruleID: portlet-commons-logging-00024
+  description: Replace commons-logging with SLF4J
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Logging
+      url: https://docs.spring.io/spring-boot/reference/features/logging.html
+  message: |
+    ## Before
+
+    ```java
+    import org.apache.commons.logging.Log;
+    import org.apache.commons.logging.LogFactory;
+    private static final Log log = LogFactory.getLog(MyPortlet.class);
+    ```
+
+    ## After
+
+    ```java
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+    private static final Logger log = LoggerFactory.getLogger(MyController.class);
+    ```
+
+    ## Additional info
+
+    - Spring Boot uses SLF4J with Logback by default.
+    - Remove commons-logging dependency from pom.xml.
+    - Use Lombok `@Slf4j` optionally.
+  when:
+    java.referenced:
+      pattern: org.apache.commons.logging.*
+      location: IMPORT
