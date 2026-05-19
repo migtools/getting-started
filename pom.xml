@@ -20,6 +20,7 @@
         <module>hotrod-repair</module>
         <module>spring-framework-migration</module>
         <module>springboot-to-quarkus-migration</module>
+        <module>portlet-to-springboot</module>
     </modules>
 
     <properties>

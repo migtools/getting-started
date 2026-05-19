@@ -1,0 +1,247 @@
+# Portlet → Spring Boot: service layer, data access, testing, deployment
+
+- ruleID: portlet-service-extraction-00035
+  description: Extract business logic from portlet classes into @Service beans
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring @Service
+      url: https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html
+  message: |
+    ## Before
+
+    Business logic embedded in portlet lifecycle methods:
+
+    ```java
+    protected void doView(...) {
+      List<Task> tasks = catalog.listTasks(max);
+      request.setAttribute("tasks", tasks);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @Service
+    public class TaskService {
+      public List<Task> listTasks(int max) { ... }
+    }
+
+    @Controller
+    public class TaskController {
+      @GetMapping
+      public String list(Model model) {
+        model.addAttribute("tasks", taskService.listTasks(max));
+        return "tasks/list";
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Portlets should become thin controllers.
+    - Move data access to `@Repository`.
+    - Enables unit testing without a portlet container.
+  when:
+    builtin.filecontent:
+      filePattern: "**/*Portlet.java"
+      pattern: "new\\s+\\w+\\(|getOrCreate\\(|findAll\\(|\\.save\\("
+
+- ruleID: portlet-springboot-application-00040
+  description: Create @SpringBootApplication main class
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Application
+      url: https://docs.spring.io/spring-boot/reference/features/spring-application.html
+  message: |
+    ## Before
+
+    No main class; WAR deployed to JBoss Portal / GateIn.
+
+    ## After
+
+    ```java
+    @SpringBootApplication
+    public class TaskPortalApplication {
+      public static void main(String[] args) {
+        SpringApplication.run(TaskPortalApplication.class, args);
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Place in root package for component scanning.
+    - Run with `mvn spring-boot:run` or `java -jar`.
+    - Remove portal deployment descriptors after cutover.
+  when:
+    builtin.xml:
+      xpath: "//dependency[groupId='javax.portlet']"
+
+- ruleID: portlet-data-jpa-00041
+  description: Add Spring Data JPA for persistent portlet preference and entity storage
+  category: optional
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Data JPA
+      url: https://docs.spring.io/spring-data/jpa/reference/jpa.html
+  message: |
+    ## Before
+
+    In-memory maps or portal-persisted preferences:
+
+    ```java
+    prefs.setValue("maxResults", "25");
+    prefs.store();
+    ```
+
+    ## After
+
+    ```java
+    @Entity
+    @Table(name = "user_preferences")
+    public class UserPreference { ... }
+
+    public interface UserPreferenceRepository extends JpaRepository<UserPreference, Long> {
+      Optional<UserPreference> findByUserIdAndPreferenceKey(String userId, String key);
+    }
+    ```
+
+    ## Additional info
+
+    - Add `spring-boot-starter-data-jpa` and configure datasource in `application.yml`.
+    - Migrate data from `jbp_preferences` with SQL scripts.
+    - Use Flyway/Liquibase for schema management.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletPreferences
+      location: TYPE
+
+- ruleID: portlet-springboot-test-00042
+  description: Add Spring Boot tests replacing portlet container integration tests
+  category: optional
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Testing
+      url: https://docs.spring.io/spring-boot/reference/testing/index.html
+  message: |
+    ## Before
+
+    Tests require a portlet container (GateIn/JBoss Portal) or mock portlet objects.
+
+    ## After
+
+    ```java
+    @SpringBootTest
+    class TaskServiceTest {
+      @Autowired TaskService taskService;
+      @Test void listTasks() { assertNotNull(taskService.listTasks(10)); }
+    }
+
+    @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+    @AutoConfigureMockMvc
+    class TaskControllerTest {
+      @Autowired MockMvc mockMvc;
+      @Test void list() throws Exception {
+        mockMvc.perform(get("/tasks")).andExpect(status().isOk());
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Add `spring-boot-starter-test` (included by parent).
+    - Use `@WebMvcTest` for controller slice tests.
+    - Target >80% coverage per migration success criteria.
+  when:
+    java.referenced:
+      pattern: javax.portlet.GenericPortlet
+      location: INHERITANCE
+
+- ruleID: portlet-actuator-00043
+  description: Add Spring Boot Actuator for production monitoring
+  category: optional
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Actuator
+      url: https://docs.spring.io/spring-boot/reference/actuator/index.html
+  message: |
+    ## Before
+
+    Portal container provides its own management console and metrics.
+
+    ## After
+
+    ```xml
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    ```
+
+    ```yaml
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+    ```
+
+    ## Additional info
+
+    - Integrate with Prometheus/Grafana post-migration.
+    - Secure actuator endpoints in production.
+    - Replace portal health checks with `/actuator/health`.
+  when:
+    builtin.xml:
+      xpath: "//dependency[groupId='javax.portlet']"
+
+- ruleID: portlet-dockerfile-00044
+  description: Containerize Spring Boot JAR for cloud-native deployment
+  category: optional
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Container Images
+      url: https://docs.spring.io/spring-boot/reference/packaging/container-images/index.html
+  message: |
+    ## Before
+
+    WAR deployed to JBoss Portal on application server VMs.
+
+    ## After
+
+    ```dockerfile
+    FROM eclipse-temurin:21-jre
+    WORKDIR /app
+    COPY target/*.jar app.jar
+    EXPOSE 8080
+    ENTRYPOINT ["java", "-jar", "app.jar"]
+    ```
+
+    ## Additional info
+
+    - Use Cloud Native Buildpacks: `mvn spring-boot:build-image`.
+    - Deploy to Kubernetes/OpenShift instead of portal farm.
+    - Run portal and Spring Boot in parallel during incremental migration.
+  when:
+    builtin.xml:
+      xpath: "//packaging[text()='war']"

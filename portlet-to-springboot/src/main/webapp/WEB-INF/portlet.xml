@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<portlet-app xmlns="http://java.sun.com/xml/ns/portlet/portlet-app_2_0.xsd"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://java.sun.com/xml/ns/portlet/portlet-app_2_0.xsd
+                                 http://java.sun.com/xml/ns/portlet/portlet-app_2_0.xsd"
+             version="2.0">
+
+    <!-- Public render parameter for inter-portlet communication (IPC) -->
+    <public-render-parameter>
+        <identifier>selectedTaskId</identifier>
+        <qname xmlns:task="http://konveyor.example.com/portlet/prp">task:selectedTaskId</qname>
+    </public-render-parameter>
+
+    <!-- Event definition shared by both portlets -->
+    <event-definition>
+        <qname xmlns:task="http://konveyor.example.com/portlet/events">task:taskSelected</qname>
+        <value-type>java.lang.String</value-type>
+    </event-definition>
+
+    <portlet>
+        <description>Task list portlet with VIEW, EDIT, and HELP modes</description>
+        <portlet-name>TaskListPortlet</portlet-name>
+        <display-name>Task List</display-name>
+        <portlet-class>com.redhat.mta.examples.portlet.TaskListPortlet</portlet-class>
+        <init-param>
+            <name>catalogTitle</name>
+            <value>Enterprise Task Catalog</value>
+        </init-param>
+        <expiration-cache>0</expiration-cache>
+        <supports>
+            <mime-type>text/html</mime-type>
+            <portlet-mode>view</portlet-mode>
+            <portlet-mode>edit</portlet-mode>
+            <portlet-mode>help</portlet-mode>
+            <window-state>normal</window-state>
+            <window-state>maximized</window-state>
+            <window-state>minimized</window-state>
+        </supports>
+        <supported-locale>en</supported-locale>
+        <resource-bundle>portlet-messages</resource-bundle>
+        <portlet-info>
+            <title>Task List</title>
+            <short-title>Tasks</short-title>
+            <keywords>tasks,portal,migration</keywords>
+        </portlet-info>
+        <portlet-preferences>
+            <preference>
+                <name>maxResults</name>
+                <value>10</value>
+            </preference>
+            <preference>
+                <name>defaultAssignee</name>
+                <value>unassigned</value>
+            </preference>
+        </portlet-preferences>
+        <supported-public-render-parameter>selectedTaskId</supported-public-render-parameter>
+        <supported-processing-event>
+            <qname xmlns:task="http://konveyor.example.com/portlet/events">task:taskSelected</qname>
+        </supported-processing-event>
+        <supported-publishing-event>
+            <qname xmlns:task="http://konveyor.example.com/portlet/events">task:taskSelected</qname>
+        </supported-publishing-event>
+    </portlet>
+
+    <portlet>
+        <description>Task detail portlet driven by render parameters and events</description>
+        <portlet-name>TaskDetailPortlet</portlet-name>
+        <display-name>Task Detail</display-name>
+        <portlet-class>com.redhat.mta.examples.portlet.TaskDetailPortlet</portlet-class>
+        <supports>
+            <mime-type>text/html</mime-type>
+            <portlet-mode>view</portlet-mode>
+            <window-state>normal</window-state>
+            <window-state>maximized</window-state>
+            <window-state>minimized</window-state>
+        </supports>
+        <supported-locale>en</supported-locale>
+        <portlet-info>
+            <title>Task Detail</title>
+            <short-title>Detail</short-title>
+        </portlet-info>
+        <supported-public-render-parameter>selectedTaskId</supported-public-render-parameter>
+        <supported-processing-event>
+            <qname xmlns:task="http://konveyor.example.com/portlet/events">task:taskSelected</qname>
+        </supported-processing-event>
+    </portlet>
+
+    <default-namespace>http://konveyor.example.com/portlet/prp</default-namespace>
+</portlet-app>

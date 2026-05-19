@@ -1,0 +1,516 @@
+# Portlet → Spring Boot: lifecycle methods and portlet classes
+
+- ruleID: portlet-genericportlet-00001
+  description: Replace GenericPortlet with Spring @Controller
+  category: mandatory
+  effort: 5
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC Controllers
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller.html
+  message: |
+    ## Before
+
+    ```java
+    public class TaskListPortlet extends GenericPortlet {
+      @Override
+      protected void doView(RenderRequest request, RenderResponse response) {
+        request.setAttribute("tasks", tasks);
+        includeJsp("/view.jsp", request, response);
+      }
+    }
+    ```
+
+    ## After
+
+    ```java
+    @Controller
+    @RequestMapping("/tasks")
+    public class TaskController {
+      private final TaskService taskService;
+      public TaskController(TaskService taskService) { this.taskService = taskService; }
+      @GetMapping
+      public String list(Model model) {
+        model.addAttribute("tasks", taskService.findAll());
+        return "tasks/list";
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Extract business logic to `@Service`.
+    - Map VIEW/EDIT/HELP to separate `@GetMapping` methods.
+    - Remove portlet lifecycle overrides.
+  when:
+    java.referenced:
+      pattern: javax.portlet.GenericPortlet
+      location: INHERITANCE
+
+- ruleID: portlet-import-api-00002
+  description: Remove javax.portlet imports
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: JSR 286 Portlet Specification
+      url: https://jcp.org/en/jsr/detail?id=286
+  message: |
+    ## Before
+
+    ```java
+    import javax.portlet.ActionRequest;
+    import javax.portlet.RenderRequest;
+    import javax.portlet.GenericPortlet;
+    ```
+
+    ## After
+
+    Remove all `javax.portlet` imports. Use Spring Web MVC:
+
+    ```java
+    import org.springframework.stereotype.Controller;
+    import org.springframework.web.bind.annotation.*;
+    import org.springframework.ui.Model;
+    ```
+
+    ## Additional info
+
+    - No jakarta.portlet equivalent exists; portlets are replaced entirely.
+    - Prefer Model and `@RequestParam` over direct request access.
+  when:
+    java.referenced:
+      pattern: javax.portlet.*
+      location: IMPORT
+
+- ruleID: portlet-implements-portlet-00019
+  description: Replace Portlet interface implementation with @Controller
+  category: mandatory
+  effort: 5
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc.html
+  message: |
+    ## Before
+
+    ```java
+    public class MyPortlet implements Portlet {
+      public void init(PortletConfig config) { }
+      public void processAction(ActionRequest req, ActionResponse res) { }
+      public void render(RenderRequest req, RenderResponse res) { }
+      public void destroy() { }
+    }
+    ```
+
+    ## After
+
+    ```java
+    @Controller
+    @RequestMapping("/my")
+    public class MyController { /* Spring MVC methods */ }
+    ```
+
+    ## Additional info
+
+    - `init()` maps to `@PostConstruct` or `@Configuration`.
+    - `destroy()` is handled by Spring container lifecycle.
+  when:
+    java.referenced:
+      pattern: javax.portlet.Portlet
+      location: IMPLEMENTS_TYPE
+
+- ruleID: portlet-doview-method-00003
+  description: Replace doView with @GetMapping view handler
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC View Resolution
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/view-name.html
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    protected void doView(RenderRequest request, RenderResponse response)
+        throws PortletException, IOException {
+      request.setAttribute("items", loadItems());
+      getPortletContext().getRequestDispatcher("/jsp/view.jsp").include(request, response);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @GetMapping
+    public String view(Model model) {
+      model.addAttribute("items", itemService.findAll());
+      return "items/view";
+    }
+    ```
+
+    ## Additional info
+
+    - Window states become UI concerns.
+    - Replace JSP includes with Thymeleaf under `src/main/resources/templates`.
+  when:
+    java.referenced:
+      pattern: doView
+      location: METHOD
+
+- ruleID: portlet-doedit-method-00004
+  description: Replace doEdit (EDIT mode) with preferences endpoint
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC Mapping
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    protected void doEdit(RenderRequest request, RenderResponse response) {
+      PortletPreferences prefs = request.getPreferences();
+      request.setAttribute("maxResults", prefs.getValue("maxResults", "10"));
+      includeJsp("/edit.jsp", request, response);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @GetMapping("/preferences")
+    public String editPreferences(@AuthenticationPrincipal User user, Model model) {
+      model.addAttribute("prefs", preferenceService.findByUserId(user.getId()));
+      return "items/preferences";
+    }
+    ```
+
+    ## Additional info
+
+    - EDIT mode maps to a dedicated settings endpoint.
+    - PortletPreferences migrate to DB/Redis user preference store.
+  when:
+    java.referenced:
+      pattern: doEdit
+      location: METHOD
+
+- ruleID: portlet-dohelp-method-00005
+  description: Replace doHelp (HELP mode) with help page endpoint
+  category: optional
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc.html
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    protected void doHelp(RenderRequest request, RenderResponse response) {
+      includeJsp("/help.jsp", request, response);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @GetMapping("/help")
+    public String help() {
+      return "items/help";
+    }
+    ```
+
+    ## Additional info
+
+    - HELP mode can be a static page, modal, or external documentation link.
+  when:
+    java.referenced:
+      pattern: doHelp
+      location: METHOD
+
+- ruleID: portlet-processaction-00006
+  description: Replace processAction with @PostMapping handlers
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring @PostMapping
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/requestmapping.html
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    public void processAction(ActionRequest request, ActionResponse response) {
+      String action = request.getParameter("action");
+      response.setRenderParameter("taskId", taskId);
+      response.setPortletMode(PortletMode.VIEW);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @PostMapping("/tasks/select")
+    public String select(@RequestParam String taskId) {
+      return "redirect:/tasks?taskId=" + taskId;
+    }
+    ```
+
+    ## Additional info
+
+    - Use POST-Redirect-GET for actions.
+    - `setRenderParameter` becomes query params or flash attributes.
+    - `setEvent` becomes ApplicationEvent or messaging.
+  when:
+    java.referenced:
+      pattern: processAction
+      location: METHOD
+
+- ruleID: portlet-serveresource-00007
+  description: Replace serveResource with @RestController
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring REST Controllers
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/responsebody.html
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    public void serveResource(ResourceRequest request, ResourceResponse response) {
+      response.setContentType("application/json");
+      PrintWriter w = response.getWriter();
+      w.write(toJson(catalog.getTask(taskId)));
+    }
+    ```
+
+    ## After
+
+    ```java
+    @RestController
+    @RequestMapping("/api/v1/tasks")
+    public class TaskApiController {
+      @GetMapping(value="/{id}", produces=MediaType.APPLICATION_JSON_VALUE)
+      public TaskDto get(@PathVariable String id) {
+        return taskService.findById(id);
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Replace `portlet:resourceURL` with standard REST URLs.
+    - Consider springdoc-openapi for API documentation.
+  when:
+    java.referenced:
+      pattern: serveResource
+      location: METHOD
+
+- ruleID: portlet-processevent-00008
+  description: Replace processEvent with Spring ApplicationEvent or messaging
+  category: mandatory
+  effort: 4
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Application Events
+      url: https://docs.spring.io/spring-framework/reference/core/beans/context-introduction.html#context-functionality-events
+  message: |
+    ## Before
+
+    ```java
+    @Override
+    public void processEvent(EventRequest request, EventResponse response) {
+      Event event = request.getEvent();
+      String taskId = (String) event.getValue();
+      response.setRenderParameter("selectedTaskId", taskId);
+    }
+    ```
+
+    ## After
+
+    ```java
+    @Component
+    public class TaskSelectedListener {
+      @EventListener
+      public void onTaskSelected(TaskSelectedEvent event) {
+        // handle IPC in-process
+      }
+    }
+    ```
+
+    ## Additional info
+
+    - Inter-portlet events become REST calls, WebSockets, or message queues.
+    - Define application-specific event POJOs instead of portlet QName events.
+  when:
+    java.referenced:
+      pattern: processEvent
+      location: METHOD
+
+- ruleID: portlet-renderrequest-setattribute-00017
+  description: Replace RenderRequest.setAttribute with Model.addAttribute
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Model
+      url: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/ui/Model.html
+  message: |
+    ## Before
+
+    ```java
+    request.setAttribute("tasks", tasks);
+    request.setAttribute("catalogTitle", title);
+    ```
+
+    ## After
+
+    ```java
+    model.addAttribute("tasks", tasks);
+    model.addAttribute("catalogTitle", title);
+    ```
+
+    ## Additional info
+
+    - Inject `Model` as a controller method parameter.
+    - For REST, return DTOs directly.
+  when:
+    java.referenced:
+      pattern: javax.portlet.RenderRequest.setAttribute
+      location: METHOD_CALL
+
+- ruleID: portlet-getportletcontext-00018
+  description: Replace getPortletContext lookups with Spring dependency injection
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Dependency Injection
+      url: https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html
+  message: |
+    ## Before
+
+    ```java
+    TaskCatalogService catalog = TaskCatalogService.getOrCreate(getPortletContext());
+    getPortletContext().getRequestDispatcher("/jsp/view.jsp").include(request, response);
+    ```
+
+    ## After
+
+    ```java
+    @Controller
+    public class TaskController {
+      private final TaskCatalogService catalog;
+      @GetMapping
+      public String view(Model model) { ... return "tasks/view"; }
+    }
+    ```
+
+    ## Additional info
+
+    - Replace APPLICATION_SCOPE attributes with `@Service` beans.
+    - JSP dispatchers become view name returns (Thymeleaf).
+  when:
+    java.referenced:
+      pattern: getPortletContext
+      location: METHOD_CALL
+
+- ruleID: portlet-getinitparameter-00028
+  description: Replace portlet init-param with @ConfigurationProperties
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: ConfigurationProperties
+      url: https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties
+  message: |
+    ## Before
+
+    ```java
+    String title = getInitParameter("catalogTitle");
+    // from portlet.xml <init-param>
+    ```
+
+    ## After
+
+    ```java
+    @ConfigurationProperties(prefix="app.tasks")
+    public class TaskProperties {
+      private String catalogTitle;
+    }
+    ```
+
+    ## Additional info
+
+    - Bind init-param values in `application.yml`.
+    - Inject TaskProperties into controllers/services.
+  when:
+    java.referenced:
+      pattern: getInitParameter
+      location: METHOD_CALL
+
+- ruleID: portlet-request-parameter-00029
+  description: Replace PortletRequest.getParameter with @RequestParam
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring @RequestParam
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/requestparam.html
+  message: |
+    ## Before
+
+    ```java
+    String action = request.getParameter("action");
+    String taskId = request.getParameter("taskId");
+    ```
+
+    ## After
+
+    ```java
+    @PostMapping("/tasks")
+    public String handle(@RequestParam String action, @RequestParam String taskId) { }
+    ```
+
+    ## Additional info
+
+    - Public render parameters become `@RequestParam` or `@PathVariable`.
+    - Use `@RequestParam(required=false)` for optional values.
+  when:
+    java.referenced:
+      pattern: javax.portlet.PortletRequest.getParameter
+      location: METHOD_CALL

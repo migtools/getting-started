@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instances>
+    <instance>
+        <instance-name>TaskListInstance</instance-name>
+        <component-ref>TaskListPortlet</component-ref>
+        <preferences>
+            <pref>
+                <name>maxResults</name>
+                <value>10</value>
+                <read-only>false</read-only>
+            </pref>
+            <pref>
+                <name>defaultAssignee</name>
+                <value>portal-user</value>
+                <read-only>false</read-only>
+            </pref>
+        </preferences>
+    </instance>
+    <instance>
+        <instance-name>TaskDetailInstance</instance-name>
+        <component-ref>TaskDetailPortlet</component-ref>
+    </instance>
+</instances>

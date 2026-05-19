@@ -33,6 +33,7 @@ Each module represents a **complete, example application** with intentionally de
 | **[spring-framework-migration](./spring-framework-migration/)** | **Spring Framework 5 → Spring Framework 6** | User management system demonstrating Spring Framework 5 to 6 migration scenarios | Spring Framework 5, Spring Security 5, JPA | `WebMvcConfigurerAdapter`, security configuration, `javax.*` → `jakarta.*` |
 | **[springboot-to-quarkus-migration](./springboot-to-quarkus-migration/)** | **Spring Boot 2.7 → Quarkus 3.28.2** | Comprehensive e-commerce application showcasing Spring Boot to Quarkus migration patterns | Spring Boot 2.7.18, Spring Security, Spring Data JPA | Spring annotations → JAX-RS/CDI, `javax.*` → `jakarta.*`, configuration properties |
 | **[struts-1.0](./struts-1.0/)** | **Apache Struts 1.x → Spring Boot 3.x** | Bank account management system demonstrating legacy Struts to Spring Boot modernization | Apache Struts 1.x, JDBC DAO, JSP, Servlet 2.x | Action → @Controller, ActionForm → DTO + Bean Validation, JDBC → Spring Data JPA, JSP → Thymeleaf |
+| **[portlet-to-springboot](./portlet-to-springboot/)** | **JSR 286 Portlet → Spring Boot 4.x** | Task portal WAR demonstrating JBoss Portal / GateIn portlet patterns and migration to Spring Boot | JSR 286, JBoss Portal, JSP, Portlet 2.0 taglibs, WAR | GenericPortlet → @Controller, portlet modes → MVC routes, IPC/events → REST/events, preferences → JPA, JSP → Thymeleaf |
 
 ##  **Project Structure**
 
@@ -46,6 +47,7 @@ mta-demo-project/
 ├── 📁 spring-framework-migration/    # Spring Framework 5 → 6 migration
 ├── 📁 springboot-to-quarkus-migration/ # Spring Boot 2.7 → Quarkus 3.28.2 migration
 ├── 📁 struts-1.0/                    # Apache Struts 1.x → Spring Boot 3.x migration
+├── 📁 portlet-to-springboot/         # JSR 286 Portlet → Spring Boot 4.x migration
 ├── 📁 .github/                       # CI/CD workflows and automation
 ├── 📄 pom.xml                        # Parent Maven configuration
 ├── 📄 README.md                      # This file
@@ -103,6 +105,7 @@ Next you should configure a Modernization profile with targets. For example
 | **spring-framework-migration** | JDK 8+ | H2 Database (embedded) | `mvn clean package` |
 | **springboot-to-quarkus-migration** | JDK 11+ (JDK 17+ recommended) | H2 Database (embedded) | `mvn clean package` |
 | **struts-1.0** | JDK 8+ | Tomcat 9.x, H2 Database (embedded) | `mvn clean package` |
+| **portlet-to-springboot** | JDK 8+ | JBoss Portal / GateIn (for runtime; WAR builds standalone) | `mvn clean package` |
 
 ## 🔬 **Using with Migration Toolkit for Applications (MTA)**
 
@@ -128,6 +131,9 @@ Next you should configure a Modernization profile with targets. For example
    
    # Analyze Struts to Spring Boot migration (with custom rules)
    kantra analyze --input struts-1.0/ --rules struts-1.0/rules/ --output reports/struts-analysis
+
+   # Analyze JSR 286 Portlet to Spring Boot migration (with custom rules)
+   kantra analyze --input portlet-to-springboot/ --rules portlet-to-springboot/ruleset/ --output reports/portlet-analysis
    ```
 
 3. **Review Migration Reports**

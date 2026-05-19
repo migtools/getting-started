@@ -1,0 +1,197 @@
+# Portlet → Spring Boot: portal and portlet deployment descriptors
+
+- ruleID: portlet-xml-descriptor-00013
+  description: Migrate portlet.xml to application.yml and @ConfigurationProperties
+  category: mandatory
+  effort: 3
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Externalized Configuration
+      url: https://docs.spring.io/spring-boot/reference/features/external-config.html
+  message: |
+    ## Before
+
+    ```xml
+    <portlet>
+      <portlet-name>TaskListPortlet</portlet-name>
+      <portlet-class>com.example.TaskListPortlet</portlet-class>
+      <init-param><name>maxResults</name><value>100</value></init-param>
+    </portlet>
+    ```
+
+    ## After
+
+    ```yaml
+    spring:
+      application:
+        name: taskportal
+    app:
+      tasks:
+        max-results: 100
+    ```
+
+    ```java
+    @ConfigurationProperties(prefix="app.tasks")
+    public record TaskProperties(int maxResults) {}
+    ```
+
+    ## Additional info
+
+    - Delete portlet.xml after migration.
+    - Map each portlet to a `@Controller` with its own `@RequestMapping` base path.
+  when:
+    builtin.xml:
+      xpath: "//portlet-app[@version='2.0'] | //portlet-app[contains(@xmlns,'portlet-app_2_0')]"
+
+- ruleID: portlet-jboss-descriptor-00014
+  description: Remove jboss-portlet.xml (JBoss Portal / GateIn)
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: JBoss Portal Reference
+      url: https://docs.jboss.org/jbportal/
+  message: |
+    ## Before
+
+    `WEB-INF/jboss-portlet.xml` configures JBoss Portal / GateIn portlet instances, security, and remotable flags.
+
+    ## After
+
+    Remove jboss-portlet.xml entirely. Deploy as Spring Boot executable JAR or container image.
+
+    ## Additional info
+
+    - Also remove jboss-app.xml, portlet-instances.xml, and `*-pages.xml`.
+    - Portal page layouts become SPA routes or Thymeleaf layouts.
+  when:
+    builtin.file:
+      pattern: "**/jboss-portlet.xml"
+
+- ruleID: portlet-instances-xml-00015
+  description: Remove portlet-instances.xml
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot
+      url: https://docs.spring.io/spring-boot/
+  message: |
+    ## Before
+
+    `portlet-instances.xml` defines named portlet instances and default preferences for the portal container.
+
+    ## After
+
+    Use `application.yml` for defaults, database seed scripts for per-user preferences, and feature flags for environment-specific behavior.
+
+    ## Additional info
+
+    - Export instance preferences before decommissioning the portal.
+  when:
+    builtin.file:
+      pattern: "**/portlet-instances.xml"
+
+- ruleID: portlet-liferay-descriptor-00026
+  description: Remove liferay-portlet.xml
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot
+      url: https://docs.spring.io/spring-boot/
+  message: |
+    ## Before
+
+    `liferay-portlet.xml` is a Liferay-specific portlet extension descriptor.
+
+    ## After
+
+    Remove liferay-portlet.xml. Reimplement roles, CSS, and scheduler entries in Spring Boot (Security, static resources, `@Scheduled`).
+
+    ## Additional info
+
+    - Map Liferay roles to Spring Security authorities.
+  when:
+    builtin.file:
+      pattern: "**/liferay-portlet.xml"
+
+- ruleID: portlet-pages-xml-00027
+  description: Replace GateIn/JBoss *-pages.xml with unified page layout
+  category: mandatory
+  effort: 2
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring MVC Layout
+      url: https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-view.html
+  message: |
+    ## Before
+
+    GateIn/JBoss `*-pages.xml` defines portal pages, regions, and portlet window placement:
+
+    ```xml
+    <instance-ref>taskportal.TaskListPortlet.TaskListInstance</instance-ref>
+    ```
+
+    ## After
+
+    Use a single-page layout in Thymeleaf or SPA router:
+
+    ```html
+    <!-- templates/dashboard.html -->
+    <div th:replace="~{fragments/task-list :: list}"></div>
+    <div th:replace="~{fragments/task-detail :: detail}"></div>
+    ```
+
+    ## Additional info
+
+    - Portal regions (left/center) map to CSS grid/flex layout.
+    - Multiple portlets on one page become fragments or components.
+  when:
+    builtin.file:
+      pattern: "**/*-pages.xml"
+
+- ruleID: portlet-jboss-app-00032
+  description: Replace jboss-app.xml app-name with spring.application.name
+  category: mandatory
+  effort: 1
+  labels:
+    - konveyor.io/source=portlet
+    - konveyor.io/target=springboot
+  links:
+    - title: Spring Boot Application Name
+      url: https://docs.spring.io/spring-boot/reference/features/external-config.html
+  message: |
+    ## Before
+
+    ```xml
+    <jboss-app>
+      <app-name>taskportal</app-name>
+    </jboss-app>
+    ```
+
+    ## After
+
+    ```yaml
+    spring:
+      application:
+        name: taskportal
+    ```
+
+    ## Additional info
+
+    - app-name was used in portal instance-ref paths.
+    - Remove jboss-app.xml after migration.
+  when:
+    builtin.file:
+      pattern: "**/jboss-app.xml"

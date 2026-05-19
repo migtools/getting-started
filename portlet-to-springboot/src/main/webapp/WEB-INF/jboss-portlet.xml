@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<portlet-app xmlns="http://www.jboss.org/portal/portlet"
+             version="2.6">
+
+    <!-- Application name used in instance-ref: taskportal.TaskListPortlet.* -->
+    <description>Task Portal portlets for JBoss Portal / GateIn</description>
+
+    <portlet>
+        <portlet-name>TaskListPortlet</portlet-name>
+        <instance>
+            <instance-name>TaskListInstance</instance-name>
+            <description>Default task list instance</description>
+        </instance>
+    </portlet>
+
+    <portlet>
+        <portlet-name>TaskDetailPortlet</portlet-name>
+        <instance>
+            <instance-name>TaskDetailInstance</instance-name>
+            <description>Default task detail instance</description>
+        </instance>
+    </portlet>
+</portlet-app>
